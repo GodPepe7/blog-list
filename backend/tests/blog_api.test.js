@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const supertest = require("supertest");
 const Blog = require("../models/blog");
+const User = require("../models/user");
 const helper = require("./test_helper");
 const app = require("../app");
 const api = supertest(app);
@@ -39,6 +40,7 @@ test("a valid blog can be added", async () => {
     author: "ecma7",
     url: "await.com",
     like: 1000,
+    id: "123sdfa213",
   };
 
   await api
@@ -60,6 +62,7 @@ test("if no likes property provided it will default to 0", async () => {
     title: "no one likes this blog",
     author: "loser",
     url: "sad.com",
+    id: "123sdfa213",
   };
 
   await api.post("/api/blogs").send(newBlog);
@@ -74,6 +77,7 @@ test("if title or url are mising, respond with code 400", async () => {
   const newBlog = {
     author: "loser",
     likes: 1,
+    id: "123sdfa213",
   };
 
   await api.post("/api/blogs").send(newBlog).expect(400);

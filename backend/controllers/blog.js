@@ -1,9 +1,14 @@
-const blog = require("../models/blog");
 const Blog = require("../models/blog");
+const User = require("../models/user");
 const bloglistRouter = require("express").Router();
+const jwt = require("jsonwebtoken");
 
 bloglistRouter.get("/", async (request, response) => {
-  const blogs = await Blog.find({});
+  const blogs = await Blog.find({}).populate("user", {
+    username: 1,
+    name: 1,
+    id: 1,
+  });
   return response.json(blogs);
 });
 
@@ -13,42 +18,40 @@ bloglistRouter.post("/", async (request, response) => {
       error: "Title or URL missing",
     });
   }
-  const blog = new Blog(request.body);
-  try {
-    const result = await blog.save();
-    response.status(201).json(result);
-  } catch (exception) {
-    next(exception);
+  const decodedToken = jwt.verify(request?.token, process.env.SECRET);
+  if (!decodedToken.id) {
+    return response.status(401).json({ error: "token invalid" });
   }
+  const user = await User.findById(decodedToken.id);
+  const blog = new Blog({ ...request.body, user: user.id });
+
+  const result = await blog.save();
+  user.blogs = user.blogs.concat(blog.id);
+  await user.save();
+  response.status(201).json(result);
 });
 
 bloglistRouter.delete("/:id", async (request, response, next) => {
   const id = request.params.id;
-  try {
-    await blog.findByIdAndDelete(id);
-    response.status(204).end();
-  } catch (exception) {
-    next(exception);
-  }
+
+  await blog.findByIdAndDelete(id);
+  return response.status(204).end();
 });
 
 bloglistRouter.put("/:id", async (request, response, next) => {
   const body = request.body;
   const id = request.params.id;
-  try {
-    const updatedPerson = await blog.findByIdAndUpdate(id, body, {
-      new: true,
-      runValidators: true,
-      context: "query",
-    });
 
-    if (updatedPerson) {
-      response.json(updatedPerson);
-    } else {
-      response.status(400).json({ error: `No blog with id: ${id}` });
-    }
-  } catch (exception) {
-    next(exception);
+  const updatedPerson = await Blog.findByIdAndUpdate(id, body, {
+    new: true,
+    runValidators: true,
+    context: "query",
+  });
+
+  if (updatedPerson) {
+    return response.json(updatedPerson);
+  } else {
+    return response.status(400).json({ error: `No blog with id: ${id}` });
   }
 });
 
